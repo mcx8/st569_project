@@ -24,6 +24,10 @@
 
 # ----- LOAD LIBRARIES -----
 
+library(sf)
+library(terra)
+library(spatstat)
+
 # For plotting
 library(ggplot2)
 library(leaflet)
@@ -65,18 +69,13 @@ mapshot(spp_plot,
 
 
 
-# ----- COMPLETE SPATIAL RANDOMNESS -----
-
-
-
-
-# --- loading in packages
-library(sf)
-library(ggplot2)
-library(spatstat)
+# ----- ANALYSES -----
 
 # reading in data
 mouse <- read.csv("~/st569_project/data/gbif/cleaned_species.csv")
+
+# (for Maxine's directory)
+mouse <- read.csv("data/gbif/cleaned_species.csv")
 
 # making it into sf object
 # assuming (epsg:4326, https://epsg.io/4326)
@@ -119,20 +118,43 @@ plot(mouse_den, main = "Intensity")
 contour(mouse_den, add = TRUE)
 
 # - ggplot2 way (better, but idk if this is the one we want)
-#install.packages("reshape2")
+# install.packages("reshape2")
 library(reshape2)
 mouse_den_df <- melt(mouse_den)
 
 # Rename columns for clarity
 colnames(mouse_den_df) <- c("x", "y", "z")
 
+library(maps)
+world <- map_data("world")
+bbox_x <- range(mouse_den_df$x)
+bbox_y <- range(mouse_den_df$y) 
+world_cropped <- world[world$long >= bbox_x[1] & world$long <= bbox_x[2] & 
+                         world$lat >= bbox_y[1] & world$lat <= bbox_y[2], ]
+
 # Plot using ggplot2
 ggplot(mouse_den_df, aes(x = x, y = y, z = z)) +
   geom_tile(aes(fill = z)) +
-  stat_contour(aes(z = z), color = "black") +  # Add contour lines
+  # Add border lines
+  borders("world", 
+          colour = "black", 
+          xlim = c(bbox[1], bbox[3]),
+          ylim = c(bbox[2], bbox[4]),
+          fill = NA) +
+  stat_contour(aes(z = z), color = "white") +  # Add contour lines
   scale_fill_viridis_c(option = "plasma") +
-  theme_bw() + 
-  labs(title = "Intensity")
+  theme_minimal() + 
+  labs(title = "Intensity of the Eurasian Harvest Mouse Observations",
+       x = "Longitude",
+       y = "Latitude",
+       fill = "Intensity\n(Mean number of\nevents per unit area)") +
+  coord_fixed(xlim = c(bbox[1], bbox[3]), 
+              ylim = c(bbox[2], bbox[4]), 
+              expand = F) +
+  theme(aspect.ratio = 3/4,
+        axis.title.y = element_text(margin = margin(r = 10)),
+        axis.title.x = element_text(margin = margin(t = 8)),
+        plot.title = element_text(face = "bold"))
 
 
 # --- Complete Spatial Randomness (CSR)
